@@ -156,9 +156,9 @@ class W_Home(Window):
 
             del self.task_lists[self.task_list_selected]
 
-            self.task_list_selected = max(
+            self.task_list_selected = min(max(
                 self.task_list_selected, len(self.task_lists) - 1
-            )
+            ), 0)
 
             self.mode = ListMode.NAVIGATE
 

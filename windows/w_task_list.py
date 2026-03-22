@@ -212,9 +212,9 @@ class W_TaskList(Window):
 
             del self.tasks[self.task_selected]
 
-            self.task_selected = max(
+            self.task_selected = min(max(
                 self.task_selected, len(self.tasks) - 1
-            )
+            ), 0)
 
             self.mode = ListMode.NAVIGATE
 
