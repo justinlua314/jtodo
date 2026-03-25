@@ -119,6 +119,15 @@ class W_Task(Window):
         return self.comments[self.comment_selected]
 
 
+    def post_comment(self, body:str):
+        self.app.service.create_comment(
+            comment = Comment(body),
+            task_uid = self.parent.uid
+        )
+
+        self.load_comments()
+
+
     def stringify_comments(self, width:int) -> list[str]:
         string_comments:list[str] = []
         render:str = ""
@@ -508,13 +517,7 @@ class W_Task(Window):
                                 f"{self.parent.status_string()}"
                             )
 
-                            # TODO: Factor out the creation of comments
-                            self.app.service.create_comment(
-                                comment = Comment(comment_text),
-                                task_uid = self.parent.uid
-                            )
-
-                            self.load_comments()
+                            self.post_comment(comment_text)
 
                     case TaskMode.TASK_PRIORITY:
                         new_priority:int = self.scrub_priority(
@@ -533,12 +536,7 @@ class W_Task(Window):
                                 f"{self.parent.priority_string()}"
                             )
 
-                            self.app.service.create_comment(
-                                comment = Comment(comment_text),
-                                task_uid = self.parent.uid
-                            )
-
-                            self.load_comments()
+                            self.post_comment(comment_text)
 
 
                     case TaskMode.DESCRIPTION_EDIT:
@@ -596,12 +594,7 @@ class W_Task(Window):
                             ].priority = status
 
                     case TaskMode.COMMENT_CREATE:
-                        self.app.service.create_comment(
-                            comment = Comment(new_buffer),
-                            task_uid = self.parent.uid
-                        )
-
-                        self.load_comments()
+                        self.post_comment(new_buffer)
 
                     case TaskMode.COMMENT_EDIT:
                         self.app.service.update_comment(
