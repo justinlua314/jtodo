@@ -30,3 +30,13 @@ class Task:
             case 2: return "High"
             case 3: return "Urgent"
 
+
+    def change_status(self, status:int, service:'TaskService'):
+        service.set_task_status(self.uid, status)
+        self.status = status
+
+
+    def change_priority(self, priority:int, service:'TaskService'):
+        service.set_task_priority(self.uid, priority)
+        self.priority = priority
+

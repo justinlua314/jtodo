@@ -119,6 +119,7 @@ class W_Task(Window):
         return self.comments[self.comment_selected]
 
 
+    # TODO: Maybe comments should be moved to the Task object itself?
     def post_comment(self, body:str):
         self.app.service.create_comment(
             comment = Comment(body),
@@ -483,6 +484,103 @@ class W_Task(Window):
         return -1
 
 
+    def submit_text_buffer(self, new_buffer:str):
+        match(self.mode):
+            case TaskMode.TASK_RENAME:
+                self.parent.name = new_buffer
+                self.app.service.rename_task(
+                    task_uid = self.parent.uid,
+                    name = new_buffer
+                )
+
+            case TaskMode.TASK_STATUS:
+                new_status:int = self.scrub_status(new_buffer)
+
+                if new_status != -1:
+                    self.parent.change_status(
+                        status = new_status,
+                        service = self.app.service
+                    )
+
+                    s_string:str = self.parent.status_string()
+                    self.post_comment(f"Status changed to {s_string}")
+
+            case TaskMode.TASK_PRIORITY:
+                new_priority:int = self.scrub_priority(
+                    new_buffer
+                )
+
+                if new_priority != -1:
+                    self.parent.change_priority(
+                        priority = new_priority,
+                        service = self.app.service
+                    )
+
+                    p_string:str = self.parent.priority_string()
+                    self.post_comment(f"Priority changed to {p_string}")
+
+            case TaskMode.DESCRIPTION_EDIT:
+                self.parent.description = new_buffer
+                self.app.service.set_task_description(
+                    task_uid = self.parent.uid,
+                    description = new_buffer
+                )
+
+            case TaskMode.SUBTASK_CREATE:
+                new_task:Task = self.app.service.create_task(
+                    task = Task(new_buffer),
+                    parent_uid = self.parent.uid,
+                    parent_is_task = True
+                )
+
+                self.load_subtasks()
+
+            case TaskMode.SUBTASK_RENAME:
+                self.app.service.rename_task(
+                    uid = self.get_selected_subtask().uid,
+                    name = new_buffer
+                )
+
+                self.subtasks[self.subtask_selected].name = (
+                    new_buffer
+                )
+
+            case TaskMode.SUBTASK_STATUS:
+                new_status:int = self.scrub_status(new_buffer)
+
+                if new_status != -1:
+                    self.get_selected_subtask().change_status(
+                        status = new_status,
+                        service = self.app.service
+                    )
+
+                    # TODO: Add Comment to subtask
+
+            case TaskMode.SUBTASK_PRIORITY:
+                new_priority:int = self.scrub_priority(
+                    new_buffer
+                )
+
+                if new_priority != -1:
+                    self.get_selected_subtask().change_priority(
+                        priority = new_priority,
+                        service = self.app.service
+                    )
+
+                    # TODO: Add Comment to subtask
+
+            case TaskMode.COMMENT_CREATE:
+                self.post_comment(new_buffer)
+
+            case TaskMode.COMMENT_EDIT:
+                self.app.service.update_comment(
+                    uid = self.get_selected_comment().uid,
+                    body = new_buffer
+                )
+
+                self.load_comments()
+
+
     def _handle_text_input(self, key):
         response:tuple[str,bool] = TextInput.handle_input(
             self.input_buffer, key
@@ -491,119 +589,9 @@ class W_Task(Window):
         new_buffer:str = response[0]
         submit:bool = response[1]
 
-        # TODO: Factor out submit processing to get rid of ugly indent
         if submit:
             if new_buffer != "":
-                match(self.mode):
-                    case TaskMode.TASK_RENAME:
-                        self.parent.name = new_buffer
-                        self.app.service.rename_task(
-                            task_uid = self.parent.uid,
-                            name = new_buffer
-                        )
-
-                    case TaskMode.TASK_STATUS:
-                        new_status:int = self.scrub_status(new_buffer)
-
-                        if new_status != -1:
-                            self.parent.status = new_status
-                            self.app.service.set_task_status(
-                                task_uid = self.parent.uid,
-                                status = new_status
-                            )
-
-                            comment_text:str = (
-                                "Status changed to "
-                                f"{self.parent.status_string()}"
-                            )
-
-                            self.post_comment(comment_text)
-
-                    case TaskMode.TASK_PRIORITY:
-                        new_priority:int = self.scrub_priority(
-                            new_buffer
-                        )
-
-                        if new_priority != -1:
-                            self.parent.priority = new_priority
-                            self.app.service.set_task_priority(
-                                task_uid = self.parent.uid,
-                                priority = new_priority
-                            )
-
-                            comment_text:str = (
-                                "Priority changed to "
-                                f"{self.parent.priority_string()}"
-                            )
-
-                            self.post_comment(comment_text)
-
-
-                    case TaskMode.DESCRIPTION_EDIT:
-                        self.parent.description = new_buffer
-                        self.app.service.set_task_description(
-                            task_uid = self.parent.uid,
-                            description = new_buffer
-                        )
-
-                    case TaskMode.SUBTASK_CREATE:
-                        new_task:Task = self.app.service.create_task(
-                            task = Task(new_buffer),
-                            parent_uid = self.parent.uid,
-                            parent_is_task = True
-                        )
-
-                        self.load_subtasks()
-
-                    case TaskMode.SUBTASK_RENAME:
-                        self.app.service.rename_task(
-                            uid = self.get_selected_subtask().uid,
-                            name = new_buffer
-                        )
-
-                        self.subtasks[self.subtask_selected].name = (
-                            new_buffer
-                        )
-
-                    case TaskMode.SUBTASK_STATUS:
-                        new_status:int = self.scrub_status(new_buffer)
-
-                        if new_status != -1:
-                            self.app.service.set_task_status(
-                                uid = self.get_selected_subtask().uid,
-                                status = new_status
-                            )
-
-                            self.subtasks[
-                                self.subtask_selected
-                            ].status = status
-
-                    case TaskMode.SUBTASK_PRIORITY:
-                        new_priority:int = self.scrub_priority(
-                            new_buffer
-                        )
-
-                        if new_priority != -1:
-                            self.app.service.set_task_priority(
-                                uid = self.get_selected_subtask().uid,
-                                priority = new_priority
-                            )
-
-                            self.subtasks[
-                                self.subtask_selected
-                            ].priority = status
-
-                    case TaskMode.COMMENT_CREATE:
-                        self.post_comment(new_buffer)
-
-                    case TaskMode.COMMENT_EDIT:
-                        self.app.service.update_comment(
-                            uid = self.get_selected_comment().uid,
-                            body = new_buffer
-                        )
-
-                        self.load_comments()
-
+                self.submit_text_buffer(new_buffer)
 
             self.input_buffer = ""
             self.mode = self.last_mode
