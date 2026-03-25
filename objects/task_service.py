@@ -53,6 +53,29 @@ class TaskService:
         )
 
 
+    def get_comments(self, task_uid:int) -> list[Comment]:
+        records:list[tuple] = self.db.load_all_records("tblComment")
+
+        comments:list[Comment] = []
+        db_task_uid:int
+        comment:Comment
+
+        for record in records:
+            db_task_uid = record[1]
+
+            if db_task_uid != task_uid:
+                continue
+
+            comment = Comment(record[3])
+            comment.uid = record[0]
+            comment.task_uid = task_uid
+            comment.date = Helpers.string_to_date(record[2])
+
+            comments.append(comment)
+
+        return comments
+
+
     def get_tasks(
         self, parent_uid:int, parent_is_task:bool,
         show_closed_tasks:bool
@@ -82,6 +105,7 @@ class TaskService:
             task.status = record[5]
             task.priority = record[6]
             task.description = record[7]
+            task.comments = self.get_comments(task.uid)
 
             tasks.append(task)
 
@@ -141,43 +165,12 @@ class TaskService:
         )
 
 
-    def get_comments(self, task_uid:int) -> list[Comment]:
-        records:list[tuple] = self.db.load_all_records("tblComment")
-
-        comments:list[Comment] = []
-        db_task_uid:int
-        comment:Comment
-
-        for record in records:
-            db_task_uid = record[1]
-
-            if db_task_uid != task_uid:
-                continue
-
-            comment = Comment(record[3])
-            comment.uid = record[0]
-            comment.task_uid = task_uid
-            comment.date = Helpers.string_to_date(record[2])
-
-            comments.append(comment)
-
-        return comments
-
-
-    def create_comment(
-        self, comment:Comment, task_uid:int
-    ) -> Comment:
+    def create_comment(self, body:str, task_uid:int):
         payload:tuple = (
-            task_uid,
-            Helpers.date_to_string(comment.date),
-            comment.body
+            task_uid, Helpers.date_to_string(dt.datetime.now()), body
         )
 
-        uid:int = self.db.submit_record("tblComment", payload)
-
-        comment.uid = uid
-        comment.task_uid = task_uid
-        return comment
+        self.db.submit_record("tblComment", payload)
 
 
     def delete_comment(self, comment:Comment):

@@ -1,5 +1,7 @@
 import datetime as dt
 
+from objects.comment import Comment
+
 
 class Task:
     def __init__(self, name:str):
@@ -14,6 +16,8 @@ class Task:
         self.priority:int = 0
 
         self.description:str = ""
+
+        self.comments:list['Comment'] = []
 
 
     def status_string(self) -> str:
@@ -39,4 +43,9 @@ class Task:
     def change_priority(self, priority:int, service:'TaskService'):
         service.set_task_priority(self.uid, priority)
         self.priority = priority
+
+
+    def post_comment(self, body:str, service:'TaskService'):
+        service.create_comment(body, self.uid)
+        self.comments = service.get_comments(self.uid)
 

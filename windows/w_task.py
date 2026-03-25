@@ -86,8 +86,6 @@ class W_Task(Window):
         self.load_subtasks()
         self.subtask_selected:int = 0
 
-        self.comments:list[Comment] = []
-        self.load_comments()
         self.comment_selected:int = 0
 
 
@@ -106,34 +104,18 @@ class W_Task(Window):
         return self.subtasks[self.subtask_selected]
 
 
-    def load_comments(self):
-        self.comments = self.app.service.get_comments(
-            task_uid = self.parent.uid
-        )
-
-
     def get_selected_comment(self) -> Comment | None:
-        if len(self.comments) == 0:
+        if len(self.parent.comments) == 0:
             return None
 
-        return self.comments[self.comment_selected]
-
-
-    # TODO: Maybe comments should be moved to the Task object itself?
-    def post_comment(self, body:str):
-        self.app.service.create_comment(
-            comment = Comment(body),
-            task_uid = self.parent.uid
-        )
-
-        self.load_comments()
+        return self.parent.comments[self.comment_selected]
 
 
     def stringify_comments(self, width:int) -> list[str]:
         string_comments:list[str] = []
         render:str = ""
 
-        for comment in self.comments:
+        for comment in self.parent.comments:
             render = Helpers.date_to_string(comment.date) + '\n'
             render += Helpers.wrap_text(
                 text = comment.body, limit = width
@@ -422,7 +404,7 @@ class W_Task(Window):
             case 'j':
                 self.comment_selected = min(
                     self.comment_selected + 1,
-                    len(self.comments) - 1
+                    len(self.parent.comments) - 1
                 )
 
             case 'k':
@@ -503,7 +485,10 @@ class W_Task(Window):
                     )
 
                     s_string:str = self.parent.status_string()
-                    self.post_comment(f"Status changed to {s_string}")
+                    self.parent.post_comment(
+                        f"Status changed to {s_string}",
+                        self.app.service
+                    )
 
             case TaskMode.TASK_PRIORITY:
                 new_priority:int = self.scrub_priority(
@@ -517,7 +502,10 @@ class W_Task(Window):
                     )
 
                     p_string:str = self.parent.priority_string()
-                    self.post_comment(f"Priority changed to {p_string}")
+                    self.parent.post_comment(
+                        f"Priority changed to {p_string}",
+                        self.app.service
+                    )
 
             case TaskMode.DESCRIPTION_EDIT:
                 self.parent.description = new_buffer
@@ -549,12 +537,18 @@ class W_Task(Window):
                 new_status:int = self.scrub_status(new_buffer)
 
                 if new_status != -1:
-                    self.get_selected_subtask().change_status(
+                    subtask:Task = self.get_selected_subtask()
+
+                    subtask.change_status(
                         status = new_status,
                         service = self.app.service
                     )
 
-                    # TODO: Add Comment to subtask
+                    s_string:str = subtask.status_string()
+                    subtask.post_comment(
+                        f"Status changed to {s_string}",
+                        self.app.service
+                    )
 
             case TaskMode.SUBTASK_PRIORITY:
                 new_priority:int = self.scrub_priority(
@@ -562,23 +556,27 @@ class W_Task(Window):
                 )
 
                 if new_priority != -1:
-                    self.get_selected_subtask().change_priority(
+                    subtask:Task = self.get_selected_subtask()
+
+                    subtask.change_priority(
                         priority = new_priority,
                         service = self.app.service
                     )
 
-                    # TODO: Add Comment to subtask
+                    p_string:str = subtask.priority_string()
+                    subtask.post_comment(
+                        f"Priority changed to {p_string}",
+                        self.app.service
+                    )
 
             case TaskMode.COMMENT_CREATE:
-                self.post_comment(new_buffer)
+                self.parent.post_comment(new_buffer, self.app.service)
 
             case TaskMode.COMMENT_EDIT:
                 self.app.service.update_comment(
                     uid = self.get_selected_comment().uid,
                     body = new_buffer
                 )
-
-                self.load_comments()
 
 
     def _handle_text_input(self, key):
@@ -624,10 +622,10 @@ class W_Task(Window):
                 self.get_selected_comment()
             )
 
-            del self.comments[self.subtask_selected]
+            del self.parent.comments[self.comment_selected]
 
             self.comment_selected = min(max(
-                self.comment_selected, len(self.subtasks) - 1
+                self.comment_selected, len(self.parent.comments) - 1
             ), 0)
 
             self.mode = TaskMode.COMMENT_NAV
