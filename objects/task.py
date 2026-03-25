@@ -1,7 +1,5 @@
 import datetime as dt
 
-from objects.comment import Comment
-
 
 class Task:
     def __init__(self, name:str):
