@@ -1,6 +1,7 @@
 from enum import Enum
 
 from lib.helpers import Helpers
+from lib.order_enums import TaskOrderKey, TaskOrderValue
 
 from objects.task import Task
 from objects.comment import Comment
@@ -28,6 +29,7 @@ class TaskMode(Enum):
     COMMENT_CREATE      = 12
     COMMENT_DELETE      = 13
     COMMENT_EDIT        = 14
+    SUBTASK_ORDER       = 15
 
 
 class W_Task(Window):
@@ -43,6 +45,7 @@ class W_Task(Window):
             'p' : "Change Task Priority",
             'e' : "Edit Description",
             'c' : "Toggle Closed SubTasks",
+            'o' : "Change SubTask Order",
             '2' : "Navigate SubTasks",
             '3' : "Nagivate Comments",
             'h' : "Go Back",
@@ -56,6 +59,7 @@ class W_Task(Window):
             's' : "Change SubTask Status",
             'p' : "Change SubTask Priority",
             'c' : "Toggle Closed SubTasks",
+            'o' : "Change SubTask Order",
             '1' : "Navigate Description",
             '3' : "Navigate Comments",
             'h' : "Go Back",
@@ -71,10 +75,18 @@ class W_Task(Window):
             'd' : "Delete Comment",
             'e' : "Edit Comment",
             'c' : "Toggle Closed SubTasks",
+            'o' : "Change SubTask Order",
             '1' : "Navigate Description",
             '2' : "Navigate SubTasks",
             'h' : "Go Back",
             'q' : "Quit"
+        }
+
+        self.orders:dict[str,str] = {
+            'e' : "Default",
+            'a' : "Ascending",
+            'd' : "Descending",
+            'r' : "Random"
         }
 
         self.input_buffer:str = ""
@@ -83,6 +95,7 @@ class W_Task(Window):
 
         self.subtasks:list[Task] = []
         self.show_closed_subtasks:bool = False
+        self.subtasks_order = TaskOrderValue.DEFAULT
         self.load_subtasks()
         self.subtask_selected:int = 0
 
@@ -93,7 +106,9 @@ class W_Task(Window):
         self.subtasks = self.app.service.get_tasks(
             parent_uid = self.parent.uid,
             parent_is_task = True,
-            show_closed_tasks = self.show_closed_subtasks
+            show_closed_tasks = self.show_closed_subtasks,
+            order_key = TaskOrderKey.NAME,
+            order_value = self.subtasks_order
         )
 
 
@@ -324,6 +339,17 @@ class W_Task(Window):
                     buffer = self.input_buffer
                 )
 
+            case TaskMode.SUBTASK_ORDER:
+                HelperBar.render_multicolumn_options(
+                    screen, {"Order" : self.orders}
+                )
+
+                HelperBar.render_input(
+                    screen,
+                    prompt = "Ordering",
+                    buffer = self.input_buffer
+                )
+
 
     def _handle_desc_nav(self, key):
         match(key):
@@ -349,6 +375,8 @@ class W_Task(Window):
                     not self.show_closed_subtasks
                 )
                 self.load_subtasks()
+
+            case 'o': self.mode = TaskMode.SUBTASK_ORDER
 
             case '2': self.mode = TaskMode.SUBTASK_NAV
             case '3': self.mode = TaskMode.COMMENT_NAV
@@ -382,6 +410,8 @@ class W_Task(Window):
                     not self.show_closed_subtasks
                 )
                 self.load_subtasks()
+
+            case 'o': self.mode = TaskMode.SUBTASK_ORDER
 
             case '1': self.mode = TaskMode.DESCRIPTION_NAV
             case '3': self.mode = TaskMode.COMMENT_NAV
@@ -425,6 +455,7 @@ class W_Task(Window):
                 )
                 self.load_subtasks()
 
+            case 'o': self.mode = TaskMode.SUBTASK_ORDER
             case '1': self.mode = TaskMode.DESCRIPTION_NAV
             case '2': self.mode = TaskMode.SUBTASK_NAV
             case 'h': self.app.pop_window_stack()
@@ -466,7 +497,26 @@ class W_Task(Window):
         return -1
 
 
-    def submit_text_buffer(self, new_buffer:str):
+    def _parse_ordering_mode(self, new_buffer:str):
+        key:str = new_buffer[0]
+
+        match(key):
+            case 'e':
+                self.subtasks_order = TaskOrderValue.DEFAULT
+
+            case 'a':
+                self.subtasks_order = TaskOrderValue.ASCENDING
+
+            case 'd':
+                self.subtasks_order = TaskOrderValue.DESCENDING
+
+            case 'r':
+                self.subtasks_order = TaskOrderValue.RANDOM
+
+        self.load_subtasks()
+
+
+    def _submit_text_buffer(self, new_buffer:str):
         match(self.mode):
             case TaskMode.TASK_RENAME:
                 self.parent.name = new_buffer
@@ -578,6 +628,9 @@ class W_Task(Window):
                     body = new_buffer
                 )
 
+            case TaskMode.SUBTASK_ORDER:
+                self._parse_ordering_mode(new_buffer)
+
 
     def _handle_text_input(self, key):
         response:tuple[str,bool] = TextInput.handle_input(
@@ -589,7 +642,7 @@ class W_Task(Window):
 
         if submit:
             if new_buffer != "":
-                self.submit_text_buffer(new_buffer)
+                self._submit_text_buffer(new_buffer)
 
             self.input_buffer = ""
             self.mode = self.last_mode
@@ -656,4 +709,5 @@ class W_Task(Window):
                 self._handle_comment_deletion(key)
 
             case TaskMode.COMMENT_EDIT: self._handle_text_input(key)
+            case TaskMode.SUBTASK_ORDER: self._handle_text_input(key)
 

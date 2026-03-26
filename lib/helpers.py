@@ -9,6 +9,15 @@ class Helpers:
         return text
 
 
+    def add_tail_space(text:str, target_width:int) -> str:
+        space_needed:int = target_width - len(text)
+
+        if space_needed < 1:
+            return text
+
+        return text + (' ' * space_needed)
+
+
     def wrap_text(text:str, limit:int) -> str:
         if text == "":
             return text

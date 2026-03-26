@@ -1,6 +1,10 @@
 import datetime as dt
 
+from operator import attrgetter
+from random import shuffle
+
 from lib.helpers import Helpers
+from lib.order_enums import TaskListOrderValue, TaskOrderKey, TaskOrderValue
 
 from objects.todo_db import TodoDB
 from objects.task_list import TaskList
@@ -14,7 +18,7 @@ class TaskService:
         self.db = TodoDB()
 
 
-    def get_task_lists(self) -> list[TaskList]:
+    def get_task_lists(self, order_mode:int=0) -> list[TaskList]:
         records:tuple = self.db.load_all_records("tblTaskList")
 
         task_lists:list[TaskList] = []
@@ -31,7 +35,19 @@ class TaskService:
 
             task_lists.append(task_list)
 
-        return task_lists
+        match(order_mode):
+            case TaskListOrderValue.DEFAULT: return task_lists
+            case TaskListOrderValue.ASCENDING:
+                return sorted(task_lists, key=attrgetter("name"))
+
+            case TaskListOrderValue.DESCENDING:
+                return sorted(
+                    task_lists, key=attrgetter("name"), reverse=True
+                )
+
+            case TaskListOrderValue.RANDOM:
+                shuffle(task_lists)
+                return task_lists
 
 
     def create_task_list(self, task_list:TaskList) -> TaskList:
@@ -41,6 +57,13 @@ class TaskService:
 
         task_list.uid = uid
         return task_list
+
+
+    def rename_task_list(self, task_list_uid:int, name:str):
+        self.db.update_record(
+            "tblTaskList", "TaskListID", task_list_uid,
+            "TaskListName", name
+        )
 
 
     def delete_task_list(self, task_list:TaskList):
@@ -78,11 +101,12 @@ class TaskService:
 
     def get_tasks(
         self, parent_uid:int, parent_is_task:bool,
-        show_closed_tasks:bool
+        show_closed_tasks:bool, order_key:int=0, order_value:int=0
     ) -> list[Task]:
         records:list[tuple] = self.db.load_all_records("tblTask")
 
         tasks:list[Task] = []
+
         db_parent_uid:int
         task:Task
 
@@ -109,7 +133,33 @@ class TaskService:
 
             tasks.append(task)
 
-        return tasks
+        if (
+            order_key == TaskOrderKey.DEFAULT or
+            order_value == TaskOrderValue.DEFAULT
+        ):
+            return tasks
+
+        if order_value == TaskOrderValue.RANDOM:
+            shuffle(tasks)
+            return tasks
+
+        order_key_string:str = ""
+
+        match(order_key):
+            case TaskOrderKey.NAME: order_key_string = "name"
+            case TaskOrderKey.STATUS: order_key_string = "status"
+            case TaskOrderKey.PRIORITY: order_key_string = "priority"
+
+        match(order_value):
+            case TaskOrderValue.ASCENDING:
+                return sorted(tasks, key=attrgetter(order_key_string))
+
+            case TaskOrderValue.DESCENDING:
+                return sorted(
+                    tasks,
+                    key=attrgetter(order_key_string),
+                    reverse=True
+                )
 
 
     def create_task(

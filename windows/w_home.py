@@ -1,5 +1,7 @@
 from enum import Enum
 
+from lib.order_enums import TaskListOrderValue
+
 from objects.task_list import TaskList
 
 from windows.window import Window
@@ -14,6 +16,7 @@ class ListMode(Enum):
     CREATE = 1
     DELETE = 2
     RENAME = 3
+    ORDER = 4
 
 
 class W_Home(Window):
@@ -26,18 +29,29 @@ class W_Home(Window):
             'd' : "Delete Task List",
             'r' : "Rename Task List",
             'l' : "View Task List",
+            'o' : "Order Task Lists",
             'q' : "Quit"
+        }
+
+        self.orders:dict[str,str] = {
+            'e' : "Default",
+            'a' : "Ascending",
+            'd' : "Descending",
+            'r' : "Random"
         }
 
         self.input_buffer:str = ""
 
         self.task_lists:list[TaskList] = []
+        self.task_lists_order:int = TaskListOrderValue.DEFAULT
         self.load_task_lists()
         self.task_list_selected:int = 0
 
 
     def load_task_lists(self):
-        self.task_lists = self.app.service.get_task_lists()
+        self.task_lists = self.app.service.get_task_lists(
+            order_mode = self.task_lists_order
+        )
 
 
     def get_selected_list(self) -> TaskList | None:
@@ -87,6 +101,17 @@ class W_Home(Window):
                     buffer = self.input_buffer
                 )
 
+            case ListMode.ORDER:
+                HelperBar.render_multicolumn_options(
+                    screen, {"Order" : self.orders}
+                )
+
+                HelperBar.render_input(
+                    screen,
+                    prompt = "Ordering",
+                    buffer = self.input_buffer
+                )
+
 
     def _handle_navigate(self, key:str):
         match(key):
@@ -121,6 +146,47 @@ class W_Home(Window):
                         W_TaskList(self.app, self.get_selected_list())
                     )
 
+            case 'o':
+                self.mode = ListMode.ORDER
+
+
+    def _parse_ordering_mode(self, new_buffer:str):
+        key:str = new_buffer[0]
+
+        match(key):
+            case 'e':
+                self.task_lists_order = TaskListOrderValue.DEFAULT
+
+            case 'a':
+                self.task_lists_order = TaskListOrderValue.ASCENDING
+
+            case 'd':
+                self.task_lists_order = TaskListOrderValue.DESCENDING
+
+            case 'r':
+                self.task_lists_order = TaskListOrderValue.RANDOM
+
+
+    def _submit_text_buffer(self, new_buffer:str):
+        match(self.mode):
+            case ListMode.CREATE:
+                new_tl:TaskList = self.app.service.create_task_list(
+                    TaskList(new_buffer)
+                )
+
+                self.task_lists.append(new_tl)
+
+            case ListMode.RENAME:
+                self.app.service.rename_task_list(
+                    self.get_selected_list(),
+                    new_buffer
+                )
+
+            case ListMode.ORDER:
+                self._parse_ordering_mode(new_buffer)
+
+        self.load_task_lists()
+
 
     def _handle_text_input(self, key):
         response:tuple[str,bool] = TextInput.handle_input(
@@ -132,12 +198,7 @@ class W_Home(Window):
 
         if submit:
             if new_buffer != "":
-                new_tl:TaskList = self.app.service.create_task_list(
-                    TaskList(new_buffer)
-                )
-
-                self.task_lists.append(new_tl)
-                self.load_task_lists()
+                self._submit_text_buffer(new_buffer)
 
             self.input_buffer = ""
             self.mode = ListMode.NAVIGATE
@@ -169,4 +230,5 @@ class W_Home(Window):
             case ListMode.CREATE: self._handle_text_input(key)
             case ListMode.DELETE: self._handle_deletion(key)
             case ListMode.RENAME: self._handle_text_input(key)
+            case ListMode.ORDER: self._handle_text_input(key)
 
