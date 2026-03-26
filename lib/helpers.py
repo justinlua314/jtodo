@@ -53,9 +53,9 @@ class Helpers:
 
 
     def date_to_string(date:dt.datetime) -> str:
-        return dt.datetime.strftime(date, "%m-%d-%Y %H:%M %p")
+        return dt.datetime.strftime(date, "%m-%d-%Y %I:%M %p")
 
 
     def string_to_date(date:str) -> dt.datetime:
-        return dt.datetime.strptime(date, "%m-%d-%Y %H:%M %p")
+        return dt.datetime.strptime(date, "%m-%d-%Y %I:%M %p")
 
