@@ -58,6 +58,32 @@ class TodoDB:
         return cursor.fetchall()
 
 
+    def delete_orphaned_tasks(
+        self, parent_uid:int, parent_is_task:bool
+    ):
+        cursor = self.connection.cursor()
+
+        if parent_is_task:
+            sql:str = "SELECT ParentTaskID, TaskID FROM tblTask"
+        else:
+            sql:str = "SELECT TaskListID, TaskID FROM tblTask"
+
+        cursor.execute(sql)
+        task_id:int
+
+        for record in cursor.fetchall():
+            if record[0] == parent_uid:
+                task_id = record[1]
+                self.remove_record("tblComment", "TaskID", task_id)
+
+                self.delete_orphaned_tasks(
+                    parent_uid = task_id,
+                    parent_is_task = True
+                )
+
+                self.remove_record("tblTask", "TaskID", task_id)
+
+
     def remove_record(self, table_name:str, uid_field:str, uid:int):
         cursor = self.connection.cursor()
 

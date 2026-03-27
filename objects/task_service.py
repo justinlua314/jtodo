@@ -67,9 +67,10 @@ class TaskService:
 
 
     def delete_task_list(self, task_list:TaskList):
-        # TODO:
-        # Delete all records orphaned by the deletion of these Tasks
-        self.db.remove_record("tblTask", "TaskListID", task_list.uid)
+        self.db.delete_orphaned_tasks(
+            parent_uid = task_list.uid,
+            parent_is_task = False
+        )
 
         self.db.remove_record(
             "tblTaskList", "TaskListID", task_list.uid
@@ -186,8 +187,13 @@ class TaskService:
 
 
     def delete_task(self, task:Task):
-        # TODO:
-        # Delete all records orphaned by the deletion of these Tasks
+        self.db.remove_record("tblComment", "TaskID", task.uid)
+
+        self.db.delete_orphaned_tasks(
+            parent_uid = task.uid,
+            parent_is_task = True
+        )
+
         self.db.remove_record("tblTask", "TaskID", task.uid)
 
 
