@@ -178,9 +178,20 @@ class W_Task(Window):
         left_panel_width:int = int(width * 0.6)
         right_panel_width:int = width - left_panel_width - 2
 
+        # Approximate what an appropriate amount of scrolling is
+        scroll_limit:int = len(self.parent.description)
+        scroll_limit //= left_panel_width
+        modifier:int = scroll_limit // 5
+        scroll_limit -= description_space
+        scroll_limit += modifier
+
+        self.description_scroll = min(
+            self.description_scroll, scroll_limit
+        )
+
         TextBox.render_box(
             screen, header_space + 1, 0,
-            description_space, left_panel_width,
+            description_space + header_space, left_panel_width,
             self.description_scroll,
             self.parent.description
         )
@@ -354,7 +365,7 @@ class W_Task(Window):
     def _handle_desc_nav(self, key):
         match(key):
             case 'q': self.app.running = False
-            # TODO: Only allow scrolling if it makes sense
+
             case 'j':
                 if self.parent.description != "":
                     self.description_scroll += 1

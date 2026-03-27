@@ -14,7 +14,9 @@ class TextBox:
                 break
 
             if len(word) + x > w and not newline:
-                y += 1
+                if scope_y >= scroll:
+                    y += 1
+
                 scope_y += 1
                 x = 0
                 newline = True
@@ -29,7 +31,9 @@ class TextBox:
             newline = False
 
             if x + 2 >= w:
-                y += 1
+                if scope_y >= scroll:
+                    y += 1
+
                 scope_y += 1
                 x = 0
                 newline = True
